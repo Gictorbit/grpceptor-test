@@ -29,8 +29,8 @@ type InterceptorTest struct {
 	TestService testpb.TestServiceServer
 	ServerOpts  []grpc.ServerOption
 	ClientOpts  []grpc.DialOption
-	T           *testing.T
-	UseTlS      bool
+	testing     *testing.T
+	useTlS      bool
 
 	serverAddr     string
 	ServerListener net.Listener
@@ -50,21 +50,21 @@ func (it *InterceptorTest) Run() {
 	var err error
 	certPEM, keyPEM, err = generateCertAndKey([]string{"localhost", "example.com"})
 	if err != nil {
-		it.T.Fatalf("unable to generate test certificate/key: " + err.Error())
+		it.testing.Fatalf("unable to generate test certificate/key: " + err.Error())
 	}
 	go func() {
 		for {
 			var err error
 			it.ServerListener, err = net.Listen("tcp", it.serverAddr)
 			if err != nil {
-				it.T.Fatalf("unable to listen on address %s: %v", it.serverAddr, err)
+				it.testing.Fatalf("unable to listen on address %s: %v", it.serverAddr, err)
 			}
 			it.serverAddr = it.ServerListener.Addr().String()
 
-			if it.UseTlS {
+			if it.useTlS {
 				cert, err := tls.X509KeyPair(certPEM, keyPEM)
 				if err != nil {
-					it.T.Fatalf("unable to load test TLS certificate: %v", err)
+					it.testing.Fatalf("unable to load test TLS certificate: %v", err)
 				}
 				creds := credentials.NewServerTLSFromCert(&cert)
 				it.ServerOpts = append(it.ServerOpts, grpc.Creds(creds))
@@ -73,7 +73,7 @@ func (it *InterceptorTest) Run() {
 			it.Server = grpc.NewServer(it.ServerOpts...)
 			// Create a service of the instantiator hasn't provided one.
 			if it.TestService == nil {
-				it.TestService = &grpc_testing.TestPingService{T: it.T}
+				it.TestService = &grpc_testing.TestPingService{T: it.testing}
 			}
 			testpb.RegisterTestServiceServer(it.Server, it.TestService)
 
@@ -95,16 +95,16 @@ func (it *InterceptorTest) Run() {
 	select {
 	case <-it.serverRunning:
 	case <-time.After(2 * time.Second):
-		it.T.Fatal("server failed to start before deadline")
+		it.testing.Fatal("server failed to start before deadline")
 	}
 }
 
 func (it *InterceptorTest) NewClient(dialOpts ...grpc.DialOption) testpb.TestServiceClient {
 	newDialOpts := append(dialOpts, grpc.WithBlock())
-	if it.UseTlS {
+	if it.useTlS {
 		cp := x509.NewCertPool()
 		if !cp.AppendCertsFromPEM(certPEM) {
-			it.T.Fatal("failed to append certificate")
+			it.testing.Fatal("failed to append certificate")
 		}
 		creds := credentials.NewTLS(&tls.Config{ServerName: "localhost", RootCAs: cp})
 		newDialOpts = append(newDialOpts, grpc.WithTransportCredentials(creds))
@@ -114,8 +114,34 @@ func (it *InterceptorTest) NewClient(dialOpts ...grpc.DialOption) testpb.TestSer
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	clientConn, err := grpc.DialContext(ctx, it.serverAddr, newDialOpts...)
-	assert.NilError(it.T, err, "must not error on client Dial")
+	assert.NilError(it.testing, err, "must not error on client Dial")
 	return testpb.NewTestServiceClient(clientConn)
+}
+
+func (it *InterceptorTest) Close() {
+	time.Sleep(10 * time.Millisecond)
+	if it.ServerListener != nil {
+		it.Server.GracefulStop()
+		it.testing.Logf("stopped grpc.Server at: %v", it.ServerAddr())
+		it.ServerListener.Close()
+	}
+	if it.clientConn != nil {
+		it.clientConn.Close()
+	}
+}
+
+func (it *InterceptorTest) ServerAddr() string {
+	return it.serverAddr
+}
+
+func (it *InterceptorTest) SimpleCtx() context.Context {
+	ctx, _ := context.WithTimeout(context.TODO(), 2*time.Second)
+	return ctx
+}
+
+func (it *InterceptorTest) DeadlineCtx(deadline time.Time) context.Context {
+	ctx, _ := context.WithDeadline(context.TODO(), deadline)
+	return ctx
 }
 
 // generateCertAndKey copied from https://github.com/johanbrandhorst/certify/blob/master/issuers/vault/vault_suite_test.go#L255
