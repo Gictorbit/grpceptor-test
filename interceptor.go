@@ -42,6 +42,15 @@ type InterceptorTest struct {
 	serverRunning                 chan bool
 }
 
+func NewTestInterceptor(t *testing.T, srvOpts []grpc.ServerOption, cliOpts []grpc.DialOption, useTls bool) *InterceptorTest {
+	return &InterceptorTest{
+		testing:    t,
+		ServerOpts: srvOpts,
+		ClientOpts: cliOpts,
+		useTlS:     useTls,
+	}
+}
+
 func (it *InterceptorTest) Run() {
 	it.restartServerWithDelayedStart = make(chan time.Duration)
 	it.serverRunning = make(chan bool)
