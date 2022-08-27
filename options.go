@@ -1,4 +1,4 @@
-package main
+package grpceptortest
 
 import (
 	testpb "github.com/grpc-ecosystem/go-grpc-middleware/testing/testproto"

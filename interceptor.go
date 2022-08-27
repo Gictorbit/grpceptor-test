@@ -1,4 +1,4 @@
-package main
+package grpceptortest
 
 import (
 	"context"
@@ -56,7 +56,7 @@ func NewTestInterceptor(t *testing.T, opts []InterceptOption) (*InterceptorTest,
 	}
 	for _, opt := range opts {
 		if err := opt(middleware); err != nil {
-			t.Fatal(err)
+			t.Fatalf("error interceptor options: %v", err)
 		}
 	}
 	return middleware, nil
@@ -202,6 +202,5 @@ func generateCertAndKey(san []string) ([]byte, []byte, error) {
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(priv),
 	})
-
 	return certOut, keyOut, nil
 }
