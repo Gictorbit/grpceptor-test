@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"net"
 	"testing"
@@ -21,8 +22,12 @@ import (
 )
 
 var (
-	certPEM []byte
-	keyPEM  []byte
+	certPEM          []byte
+	keyPEM           []byte
+	errNilServerOpts error = errors.New("error server options can't be nil")
+	errNilClientOpts error = errors.New("error client options can't be nil")
+	errNilTestServer error = errors.New("error test server can't be nil")
+	errNilTesting    error = errors.New("error testing can't be nil")
 )
 
 type InterceptorTest struct {
@@ -42,13 +47,19 @@ type InterceptorTest struct {
 	serverRunning                 chan bool
 }
 
-func NewTestInterceptor(t *testing.T, srvOpts []grpc.ServerOption, cliOpts []grpc.DialOption, useTls bool) *InterceptorTest {
-	return &InterceptorTest{
-		testing:    t,
-		ServerOpts: srvOpts,
-		ClientOpts: cliOpts,
-		useTlS:     useTls,
+func NewTestInterceptor(t *testing.T, opts []InterceptOption) (*InterceptorTest, error) {
+	if t == nil {
+		return nil, errNilTesting
 	}
+	middleware := &InterceptorTest{
+		testing: t,
+	}
+	for _, opt := range opts {
+		if err := opt(middleware); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return middleware, nil
 }
 
 func (it *InterceptorTest) Run() {
