@@ -47,7 +47,7 @@ type InterceptorTest struct {
 	serverRunning                 chan bool
 }
 
-func NewTestInterceptor(t *testing.T, opts []InterceptOption) (*InterceptorTest, error) {
+func NewTestInterceptor(t *testing.T, opts ...InterceptOption) (*InterceptorTest, error) {
 	if t == nil {
 		return nil, errNilTesting
 	}
