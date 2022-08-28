@@ -142,7 +142,6 @@ func (it *InterceptorTest) Close() {
 	time.Sleep(10 * time.Millisecond)
 	if it.ServerListener != nil {
 		it.Server.GracefulStop()
-		it.testing.Logf("stopped grpc.Server at: %v", it.ServerAddr())
 		it.ServerListener.Close()
 	}
 	if it.clientConn != nil {
